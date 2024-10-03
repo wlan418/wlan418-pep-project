@@ -1,5 +1,9 @@
 package Controller;
 
+import static org.mockito.ArgumentMatchers.nullable;
+
+import org.eclipse.jetty.http.HttpTester.Message;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +33,12 @@ public class SocialMediaController {
         app.get("example-endpoint", this::exampleHandler);
         app.post("register", this::createAccount);
         app.post("login", this::verifyAccount);
+        app.post("messages", this::createMessage);
+        app.get("messages", this::getAllMessages);
+        app.get("messages/{message_id}", this::getMessageById);
+        app.delete("messages/{message_id}", this::deleteMessage);
+        app.patch("messages/{message_id}", this::updateMessage);
+        app.get("accounts/{account_id}/messages", this::getAllMessagesByUser);
         return app;
     }
 
@@ -52,7 +62,6 @@ public class SocialMediaController {
             } else {
                 Account createdAccount = sms.createAccount(account);
                 ctx.json(om.writeValueAsString(createdAccount));
-                ctx.status(200);
             }
         }
     }
@@ -64,8 +73,63 @@ public class SocialMediaController {
             ctx.status(401);
         } else {
             ctx.json(om.writeValueAsString(verified));
-            ctx.status(200);
         }
     }
 
+    private void createMessage(Context ctx) throws JsonMappingException, JsonProcessingException {
+        ObjectMapper om = new ObjectMapper();
+        Model.Message message = om.readValue(ctx.body(),Model.Message.class);
+        String text = message.getMessage_text();
+        if (text=="" || text.length()>255)
+            ctx.status(400);
+        else {
+            Model.Message createdMessage = sms.createMessage(message);
+            if (createdMessage==null)
+                ctx.status(400);
+            else
+                ctx.json(om.writeValueAsString(createdMessage));
+        }
+    }
+
+    private void getAllMessages(Context ctx) {
+        ctx.json(sms.getAllMessages());
+    }
+
+    private void getMessageById(Context ctx) {
+        int message_id = Integer.parseInt(ctx.pathParam("message_id"));
+        Model.Message message = sms.getMessage(message_id);
+        if (message==null)
+            ctx.json("");
+        else
+            ctx.json(message);
+    }
+
+    private void deleteMessage(Context ctx) {
+        int message_id = Integer.parseInt(ctx.pathParam("message_id"));
+        Model.Message message = sms.deleteMessage(message_id);
+        if (message==null)
+            ctx.json("");
+        else
+            ctx.json(message);
+    }
+
+    private void updateMessage(Context ctx) throws JsonMappingException, JsonProcessingException {
+        ObjectMapper om = new ObjectMapper();
+        String message_text = om.readValue(ctx.body(), String.class);
+        int message_id = Integer.parseInt(ctx.pathParam("message_id"));
+        if (message_text=="" || message_text.length()>255)
+            ctx.status(400);
+        else {
+            Model.Message updatedMessage = sms.updateMessage(message_id, message_text);
+            if (updatedMessage==null)
+                ctx.status(400);
+            else
+                ctx.json(updatedMessage);
+        }
+    }
+
+    private void getAllMessagesByUser(Context ctx) {
+        int account_id = Integer.parseInt(ctx.pathParam("account_id"));
+        ctx.json(sms.getAllMessagesFromUser(account_id));
+    }
 }
