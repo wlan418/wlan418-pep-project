@@ -115,7 +115,8 @@ public class SocialMediaController {
 
     private void updateMessage(Context ctx) throws JsonMappingException, JsonProcessingException {
         ObjectMapper om = new ObjectMapper();
-        String message_text = om.readValue(ctx.body(), String.class);
+        Model.Message msg = om.readValue(ctx.body(),Model.Message.class);
+        String message_text = msg.getMessage_text();
         int message_id = Integer.parseInt(ctx.pathParam("message_id"));
         if (message_text=="" || message_text.length()>255)
             ctx.status(400);
